@@ -9,7 +9,6 @@ import { useRouter } from 'next/navigation';
 import Image from "next/image";
 import Link from "next/link";
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 export default function AdminPanel() {
   const router = useRouter();
   const [title, setTitle] = useState("");
@@ -111,15 +110,30 @@ export default function AdminPanel() {
     router.push(`admin/${id}`);
   };
 
-  // Kullanıcı doğrulama kontrolü
-  const handlePasswordSubmit = (e) => {
+  // Kullanıcı doğrulama kontrolü (güvenli, server-side doğrulama)
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      localStorage.setItem("isAdminAuthenticated", "true"); // Giriş yapıldığında localStorage'a kaydediyoruz
-      fetchQuestions(); // Giriş yapıldığında verileri çek
-    } else {
-      alert("Yanlış parola. Lütfen tekrar deneyin.");
+    try {
+      const res = await fetch("/api/admin-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ password }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success) {
+        setIsAuthenticated(true);
+        localStorage.setItem("isAdminAuthenticated", "true"); // Giriş yapıldığında localStorage'a kaydediyoruz
+        fetchQuestions(); // Giriş yapıldığında verileri çek
+      } else {
+        alert(data.message || "Yanlış parola. Lütfen yenidən cəhd edin.");
+      }
+    } catch (error) {
+      console.error("Login request error:", error);
+      alert("Server ilə əlaqə zamanı xəta baş verdi. Zəhmət olmasa sonra yenidən cəhd edin.");
     }
   };
 
