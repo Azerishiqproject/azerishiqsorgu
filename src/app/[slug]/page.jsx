@@ -111,7 +111,7 @@ export default function QuestionDetails() {
       </div> 
   
       <div className='w-full flex justify-center p-4 relative z-10'>
-        <div className="max-w-2xl mx-auto p-6 bg-gray-100 rounded-lg shadow-lg mt-10">
+        <div className="max-w-2xl mx-auto p-6 bg-gray-100 rounded-lg shadow-lg mt-10 mb-20">
           <h1 className="text-2xl font-bold mb-6 text-black">{question.title}</h1>
   
           {/* Answer submission form */}
@@ -125,7 +125,7 @@ export default function QuestionDetails() {
                 required
               />
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-3 ">
                 {question.variants && question.variants.length > 0 ? (
                   <>
                     {question.maxSelections > 1 && (
@@ -187,7 +187,7 @@ export default function QuestionDetails() {
         </div>
       </div>
       
-      <div className="h-[50px] w-full bottom-0 justify-center absolute z-10 text-black">
+      <div className="h-[50px] w-full bottom-0 justify-center absolute z-10 text-black ">
         <h2 className="text-xs font-semibold italic w-full text-center">UĞUR, İNKİŞAF VƏ FƏRQLİLİYƏ GEDƏN</h2>
         <h2 className="text-xs font-semibold italic w-full text-center">“İŞIQLI YOL”</h2>
       </div>
