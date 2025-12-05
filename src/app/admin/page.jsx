@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { db } from "../../../firebase";
 import { collection, addDoc, query, getDocs, updateDoc, doc, deleteDoc, getDoc } from "firebase/firestore";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faTrash, faPlus, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { useRouter } from 'next/navigation';
 import Image from "next/image";
 import Link from "next/link";
@@ -12,13 +12,14 @@ import Link from "next/link";
 export default function AdminPanel() {
   const router = useRouter();
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
   const [questions, setQuestions] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [questionType, setQuestionType] = useState("text"); // "text" or "variant"
+  const [variants, setVariants] = useState([{ id: Date.now(), text: "" }]);
 
   const generateRandomId = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -35,17 +36,38 @@ export default function AdminPanel() {
   };
 
   const addQuestion = async () => {
+    if (!title) {
+      alert("Başlıq doldurulmalıdır.");
+      return;
+    }
+
+    if (questionType === "variant" && variants.some(v => !v.text.trim())) {
+      alert("Bütün variantlar doldurulmalıdır.");
+      return;
+    }
+
+    if (questionType === "variant" && variants.length < 2) {
+      alert("Ən azı 2 variant əlavə edilməlidir.");
+      return;
+    }
+
     try {
       const newId = generateRandomId();
-      await addDoc(collection(db, "questions"), {
+      const questionData = {
         title,
-        description,
         active: true,
         slug: title.toLowerCase().replace(/\s+/g, "-"),
         randomId: newId,
-      });
+        questionType: questionType,
+      };
+
+      if (questionType === "variant") {
+        questionData.variants = variants.filter(v => v.text.trim()).map(v => ({ text: v.text.trim() }));
+      }
+
+      await addDoc(collection(db, "questions"), questionData);
       fetchQuestions();
-      setShowForm(false);
+      clearForm();
     } catch (error) {
       console.error("Hata:", error);
     }
@@ -53,20 +75,44 @@ export default function AdminPanel() {
 
   const updateQuestion = async () => {
     if (!editingQuestion) return;
+    
+    if (!title) {
+      alert("Başlıq doldurulmalıdır.");
+      return;
+    }
+
+    if (questionType === "variant" && variants.some(v => !v.text.trim())) {
+      alert("Bütün variantlar doldurulmalıdır.");
+      return;
+    }
+
+    if (questionType === "variant" && variants.length < 2) {
+      alert("Ən azı 2 variant əlavə edilməlidir.");
+      return;
+    }
+
     try {
       const docRef = doc(db, "questions", editingQuestion.id);
       const docSnap = await getDoc(docRef);
       if (!docSnap.exists()) return;
 
-      await updateDoc(docRef, {
+      const updateData = {
         title,
-        description,
         slug: title.toLowerCase().replace(/\s+/g, "-"),
-      });
+        questionType: questionType,
+      };
+
+      if (questionType === "variant") {
+        updateData.variants = variants.filter(v => v.text.trim()).map(v => ({ text: v.text.trim() }));
+      } else {
+        updateData.variants = null;
+      }
+
+      await updateDoc(docRef, updateData);
       setTitle("");
-      setDescription("");
       fetchQuestions();
       setEditingQuestion(null);
+      clearForm();
     } catch (error) {
       console.error("Hata:", error);
     }
@@ -85,9 +131,10 @@ export default function AdminPanel() {
 
   const clearForm = () => {
     setTitle("");
-    setDescription("");
     setEditingQuestion(null);
     setShowForm(false);
+    setQuestionType("text");
+    setVariants([{ id: Date.now(), text: "" }]);
   };
 
   const toggleQuestionStatus = async (id, currentStatus) => {
@@ -102,8 +149,27 @@ export default function AdminPanel() {
   const startEditing = (question) => {
     setEditingQuestion(question);
     setTitle(question.title);
-    setDescription(question.description);
+    setQuestionType(question.questionType || "text");
+    if (question.variants && question.variants.length > 0) {
+      setVariants(question.variants.map((v, idx) => ({ id: Date.now() + idx, text: v.text })));
+    } else {
+      setVariants([{ id: Date.now(), text: "" }]);
+    }
     setShowForm(true);
+  };
+
+  const addVariant = () => {
+    setVariants([...variants, { id: Date.now(), text: "" }]);
+  };
+
+  const removeVariant = (id) => {
+    if (variants.length > 1) {
+      setVariants(variants.filter(v => v.id !== id));
+    }
+  };
+
+  const updateVariant = (id, text) => {
+    setVariants(variants.map(v => v.id === id ? { ...v, text } : v));
   };
 
   const goToQuestionPage = (slug, id) => {
@@ -194,16 +260,71 @@ export default function AdminPanel() {
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="block text-xs font-medium text-slate-200 mb-1">
-                        Açıqlama
+                      <label className="block text-xs font-medium text-slate-200 mb-2">
+                        Cavab Tipi
                       </label>
-                      <textarea
-                        className="w-full min-h-[100px] rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-slate-300/70 outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 resize-y"
-                        placeholder="Sualla bağlı qısa açıqlama"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                      />
+                      <div className="flex gap-4">
+                        <label className="flex items-center cursor-pointer">
+                          <input
+                            type="radio"
+                            name="questionType"
+                            value="text"
+                            checked={questionType === "text"}
+                            onChange={(e) => setQuestionType(e.target.value)}
+                            className="mr-2"
+                          />
+                          <span className="text-sm">Mətn girişi (hər kəs öz cavabını yazır)</span>
+                        </label>
+                        <label className="flex items-center cursor-pointer">
+                          <input
+                            type="radio"
+                            name="questionType"
+                            value="variant"
+                            checked={questionType === "variant"}
+                            onChange={(e) => setQuestionType(e.target.value)}
+                            className="mr-2"
+                          />
+                          <span className="text-sm">Variant seçimi (hazır cavablar)</span>
+                        </label>
+                      </div>
                     </div>
+                    {questionType === "variant" && (
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-medium text-slate-200 mb-2">
+                          Variantlar
+                        </label>
+                        <div className="space-y-2">
+                          {variants.map((variant) => (
+                            <div key={variant.id} className="flex gap-2 items-center">
+                              <input
+                                type="text"
+                                value={variant.text}
+                                onChange={(e) => updateVariant(variant.id, e.target.value)}
+                                placeholder="Variant mətni"
+                                className="flex-1 rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-white placeholder:text-slate-300/70 outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200"
+                              />
+                              {variants.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeVariant(variant.id)}
+                                  className="p-2 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all"
+                                >
+                                  <FontAwesomeIcon icon={faTimes} />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={addVariant}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-2xl border border-white/20 bg-white/5 hover:bg-white/10 text-white transition-all"
+                          >
+                            <FontAwesomeIcon icon={faPlus} />
+                            <span>Variant əlavə et</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <button
                     className="inline-flex items-center justify-center px-6 py-3 bg-green-500 text-white font-semibold rounded-2xl shadow-md hover:bg-green-600 hover:shadow-lg active:scale-[0.98] transition-all duration-200"
@@ -239,9 +360,6 @@ export default function AdminPanel() {
                         <h4 className="text-lg font-semibold text-white line-clamp-2">
                           {question.title}
                         </h4>
-                        <p className="mt-2 text-sm text-slate-200/90 line-clamp-3">
-                          {question.description}
-                        </p>
                       </div>
 
                       <div className="mt-auto pt-3 border-t border-white/10 flex items-center justify-between gap-3">

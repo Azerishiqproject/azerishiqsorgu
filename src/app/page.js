@@ -65,9 +65,6 @@ export default function Home() {
                 <h2 className="text-xl font-semibold text-gray-900 line-clamp-2">
                   {question.title}
                 </h2>
-                <p className="mt-2 text-sm text-gray-600 line-clamp-3">
-                  {question.description}
-                </p>
                 <Link
                   href={`/${question.id}`}
                   className="inline-flex items-center justify-center mt-4 w-full px-4 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 active:scale-[0.98] transition-all duration-200"

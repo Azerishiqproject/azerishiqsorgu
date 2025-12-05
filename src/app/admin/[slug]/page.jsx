@@ -62,16 +62,14 @@ export default function QuestionDetails() {
 
   const handleEdit = async () => {
     const newTitle = prompt('Enter new title:', question.title);
-    const newDescription = prompt('Enter new description:', question.description);
 
-    if (newTitle && newDescription) {
+    if (newTitle) {
       const questionRef = doc(db, 'questions', slug);
       try {
         await updateDoc(questionRef, {
-          title: newTitle,
-          description: newDescription
+          title: newTitle
         });
-        setQuestion(prev => ({ ...prev, title: newTitle, description: newDescription }));
+        setQuestion(prev => ({ ...prev, title: newTitle }));
         alert('Question has been updated successfully!');
       } catch (error) {
         console.error('Error updating question:', error);
@@ -81,6 +79,31 @@ export default function QuestionDetails() {
   };
 
   const totalAnswers = question?.answers ? question.answers.length : 0;
+
+  // Calculate variant statistics
+  const getVariantStats = () => {
+    if (!question || !question.variants || question.questionType !== 'variant') {
+      return {};
+    }
+
+    const stats = {};
+    question.variants.forEach(variant => {
+      stats[variant.text] = 0;
+    });
+
+    if (question.answers) {
+      question.answers.forEach(answer => {
+        const answerText = answer.answer;
+        if (stats.hasOwnProperty(answerText)) {
+          stats[answerText]++;
+        }
+      });
+    }
+
+    return stats;
+  };
+
+  const variantStats = getVariantStats();
 
   if (loading) {
     return <div>Loading...</div>;
@@ -110,9 +133,36 @@ export default function QuestionDetails() {
         <h1 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4 break-words">
           {question.title}
         </h1>
-        <p className="text-sm sm:text-base text-slate-200/90 mb-6 sm:mb-8">
-          {question.description}
-        </p>
+
+        {/* Question Type and Variants Info */}
+        <div className="mb-6 p-4 rounded-2xl bg-white/5 border border-white/10">
+          <p className="text-xs text-slate-300 mb-2">
+            Cavab Tipi: <span className="text-white font-semibold">
+              {(!question.questionType || question.questionType === 'text') ? 'Mətn girişi' : 'Variant seçimi'}
+            </span>
+          </p>
+          {question.variants && question.variants.length > 0 && (
+            <div className="mt-3">
+              <p className="text-xs text-slate-300 mb-2">Variantlar:</p>
+              <div className="space-y-2">
+                {question.variants.map((variant, idx) => {
+                  const count = variantStats[variant.text] || 0;
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between px-3 py-2 rounded-xl bg-blue-500/20 border border-blue-400/30"
+                    >
+                      <span className="text-xs text-blue-200">{variant.text}</span>
+                      <span className="text-xs font-semibold text-blue-100 bg-blue-600/50 px-2 py-1 rounded-lg">
+                        {count} nəfər
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Buttons for editing, deleting, and toggling active state */}
         <div className="mb-8 flex flex-wrap items-center gap-3">
@@ -166,17 +216,62 @@ export default function QuestionDetails() {
           </h2>
         </div>
 
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-          {question.answers &&
-            question.answers.map((ans, index) => (
-              <div
-                key={index}
-                className="border border-white/10 p-4 rounded-2xl bg-white/5 shadow-sm hover:shadow-md transition-all break-words text-slate-100 text-sm"
-              >
-                <p>{ans.answer}</p>
-              </div>
-            ))}
-        </div>
+        {/* Variant Statistics Summary */}
+        {question.questionType === 'variant' && question.variants && question.variants.length > 0 && (
+          <div className="mb-6 p-4 rounded-2xl bg-white/5 border border-white/10">
+            <h3 className="text-sm font-semibold text-slate-200 mb-3">Variant Statistikaları:</h3>
+            <div className="space-y-2">
+              {question.variants.map((variant, idx) => {
+                const count = variantStats[variant.text] || 0;
+                const percentage = totalAnswers > 0 ? ((count / totalAnswers) * 100).toFixed(1) : 0;
+                return (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-200">{variant.text}</span>
+                      <span className="text-slate-100 font-semibold">
+                        {count} nəfər ({percentage}%)
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-700/50 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${percentage}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Grouped Summary for Variant Questions */}
+        {question.questionType === 'variant' && question.variants && question.variants.length > 0 && (
+          <div className="mb-6 p-4 rounded-2xl bg-white/5 border border-white/10">
+            <h3 className="text-sm font-semibold text-slate-200 mb-3">Cavab Xülasəsi:</h3>
+            <p className="text-slate-100 text-sm">
+              {Object.entries(variantStats)
+                .filter(([_, count]) => count > 0)
+                .map(([variant, count]) => `${count} ${variant}`)
+                .join(', ') || 'Hələ cavab yoxdur'}
+            </p>
+          </div>
+        )}
+
+        {/* Individual Answers List - Only for Text Questions */}
+        {(!question.questionType || question.questionType === 'text') && (
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+            {question.answers &&
+              question.answers.map((ans, index) => (
+                <div
+                  key={index}
+                  className="border border-white/10 p-4 rounded-2xl bg-white/5 shadow-sm hover:shadow-md transition-all break-words text-slate-100 text-sm"
+                >
+                  <p>{ans.answer}</p>
+                </div>
+              ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ export default function QuestionDetails() {
   const [question, setQuestion] = useState(null); // State to hold the fetched question
   const [loading, setLoading] = useState(true); // State to track loading status
   const [answer, setAnswer] = useState(''); // State to hold the user's answer
+  const [selectedVariant, setSelectedVariant] = useState(null); // State to hold selected variant
   const [error, setError] = useState(null); // State to handle errors
   const [showSnackbar, setShowSnackbar] = useState(false); // Snackbar visibility
   const router = useRouter(); // Initialize the router for navigation
@@ -43,15 +44,29 @@ export default function QuestionDetails() {
 
   const handleSubmit = async (e) => {
     e.preventDefault(); // Prevent the default form submission
-    if (!answer) return; // Validate answer input
+    
+    const questionType = question.questionType || 'text';
+    let answerToSubmit = '';
+    
+    if (questionType === 'text') {
+      if (!answer.trim()) return; // Validate answer input
+      answerToSubmit = answer;
+    } else if (questionType === 'variant') {
+      if (!selectedVariant) {
+        alert('Zəhmət olmasa bir variant seçin.');
+        return;
+      }
+      answerToSubmit = selectedVariant;
+    }
 
     try {
       const questionRef = doc(db, 'questions', slug); // Reference to the question document
       // Update the answers array in the question document
       await updateDoc(questionRef, {
-        answers: [...(question.answers || []), { answer: answer, createdAt: new Date() }] // Append the new answer
+        answers: [...(question.answers || []), { answer: answerToSubmit, createdAt: new Date() }] // Append the new answer
       });
       setAnswer(''); // Clear the answer input after submission
+      setSelectedVariant(null); // Clear selected variant
       setShowSnackbar(true); // Show success snackbar
 
       // Redirect to the home page after a short delay
@@ -91,18 +106,40 @@ export default function QuestionDetails() {
   
       <div className='w-full flex justify-center p-4 relative z-10'>
         <div className="max-w-2xl mx-auto p-6 bg-gray-100 rounded-lg shadow-lg mt-10">
-          <h1 className="text-2xl font-bold mb-4 text-black">{question.title}</h1>
-          <p className="text-gray-700 mb-6">{question.description}</p>
+          <h1 className="text-2xl font-bold mb-6 text-black">{question.title}</h1>
   
           {/* Answer submission form */}
           <form onSubmit={handleSubmit} className="mt-4 text-black space-y-4">
-            <textarea
-              value={answer}
-              onChange={handleAnswerChange}
-              placeholder="Cavabınızı yazın..."
-              className="w-full min-h-[140px] resize-y border border-gray-200 rounded-2xl px-4 py-3 bg-white/80 shadow-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 transition-all duration-200"
-              required
-            />
+            {(!question.questionType || question.questionType === 'text') ? (
+              <textarea
+                value={answer}
+                onChange={handleAnswerChange}
+                placeholder="Cavabınızı yazın..."
+                className="w-full min-h-[140px] resize-y border border-gray-200 rounded-2xl px-4 py-3 bg-white/80 shadow-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 transition-all duration-200"
+                required
+              />
+            ) : (
+              <div className="space-y-3">
+                {question.variants && question.variants.length > 0 ? (
+                  question.variants.map((variant, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => setSelectedVariant(variant.text)}
+                      className={`w-full text-left px-6 py-4 rounded-2xl border-2 transition-all duration-200 font-medium ${
+                        selectedVariant === variant.text
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-lg scale-[1.02]'
+                          : 'bg-white/80 text-gray-700 border-gray-200 hover:border-blue-400 hover:bg-blue-50'
+                      }`}
+                    >
+                      {variant.text}
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-sm">Variantlar tapılmadı.</p>
+                )}
+              </div>
+            )}
             <button
               type="submit"
               className="w-full bg-blue-600 text-white rounded-2xl px-4 py-3 font-semibold shadow-md hover:bg-blue-700 hover:shadow-lg active:scale-[0.98] transition-all duration-200"
