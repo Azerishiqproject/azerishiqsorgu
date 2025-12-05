@@ -54,10 +54,12 @@ const CircularResponseGrid = () => {
   // Calculate variant statistics for variant questions
   const getVariantStats = () => {
     if (!question || !question.variants || question.questionType !== 'variant') {
-      return {};
+      return { stats: {}, totalSelections: 0 };
     }
 
     const stats = {};
+    let totalSelections = 0;
+    
     question.variants.forEach(variant => {
       stats[variant.text] = 0;
     });
@@ -70,6 +72,7 @@ const CircularResponseGrid = () => {
           const parsed = JSON.parse(answerText);
           if (Array.isArray(parsed)) {
             // Multiple selections
+            totalSelections += parsed.length;
             parsed.forEach(variantText => {
               if (stats.hasOwnProperty(variantText)) {
                 stats[variantText]++;
@@ -77,12 +80,14 @@ const CircularResponseGrid = () => {
             });
           } else {
             // Single selection (old format)
+            totalSelections += 1;
             if (stats.hasOwnProperty(answerText)) {
               stats[answerText]++;
             }
           }
         } catch (e) {
           // Not JSON, treat as single selection
+          totalSelections += 1;
           if (stats.hasOwnProperty(answerText)) {
             stats[answerText]++;
           }
@@ -90,10 +95,10 @@ const CircularResponseGrid = () => {
       });
     }
 
-    return stats;
+    return { stats, totalSelections };
   };
 
-  const variantStats = getVariantStats();
+  const { stats: variantStats, totalSelections } = getVariantStats();
   const totalAnswers = question?.answers ? question.answers.length : 0;
   const isVariantQuestion = question.questionType === 'variant' && question.variants && question.variants.length > 0;
 
@@ -128,7 +133,7 @@ const CircularResponseGrid = () => {
                   <tbody>
                     {question.variants.map((variant, idx) => {
                       const count = variantStats[variant.text] || 0;
-                      const percentage = totalAnswers > 0 ? ((count / totalAnswers) * 100).toFixed(1) : 0;
+                      const percentage = totalSelections > 0 ? ((count / totalSelections) * 100).toFixed(1) : 0;
                       const isLast = idx === question.variants.length - 1;
                       
                       return (

@@ -83,10 +83,12 @@ export default function QuestionDetails() {
   // Calculate variant statistics
   const getVariantStats = () => {
     if (!question || !question.variants || question.questionType !== 'variant') {
-      return {};
+      return { stats: {}, totalSelections: 0 };
     }
 
     const stats = {};
+    let totalSelections = 0;
+    
     question.variants.forEach(variant => {
       stats[variant.text] = 0;
     });
@@ -99,6 +101,7 @@ export default function QuestionDetails() {
           const parsed = JSON.parse(answerText);
           if (Array.isArray(parsed)) {
             // Multiple selections
+            totalSelections += parsed.length;
             parsed.forEach(variantText => {
               if (stats.hasOwnProperty(variantText)) {
                 stats[variantText]++;
@@ -106,12 +109,14 @@ export default function QuestionDetails() {
             });
           } else {
             // Single selection (old format)
+            totalSelections += 1;
             if (stats.hasOwnProperty(answerText)) {
               stats[answerText]++;
             }
           }
         } catch (e) {
           // Not JSON, treat as single selection
+          totalSelections += 1;
           if (stats.hasOwnProperty(answerText)) {
             stats[answerText]++;
           }
@@ -119,10 +124,10 @@ export default function QuestionDetails() {
       });
     }
 
-    return stats;
+    return { stats, totalSelections };
   };
 
-  const variantStats = getVariantStats();
+  const { stats: variantStats, totalSelections } = getVariantStats();
 
   if (loading) {
     return <div>Loading...</div>;
@@ -247,7 +252,7 @@ export default function QuestionDetails() {
             <div className="space-y-2">
               {question.variants.map((variant, idx) => {
                 const count = variantStats[variant.text] || 0;
-                const percentage = totalAnswers > 0 ? ((count / totalAnswers) * 100).toFixed(1) : 0;
+                const percentage = totalSelections > 0 ? ((count / totalSelections) * 100).toFixed(1) : 0;
                 return (
                   <div key={idx} className="space-y-1">
                     <div className="flex items-center justify-between text-xs">
