@@ -10,7 +10,7 @@ export default function QuestionDetails() {
   const [question, setQuestion] = useState(null); // State to hold the fetched question
   const [loading, setLoading] = useState(true); // State to track loading status
   const [answer, setAnswer] = useState(''); // State to hold the user's answer
-  const [selectedVariant, setSelectedVariant] = useState(null); // State to hold selected variant
+  const [selectedVariants, setSelectedVariants] = useState([]); // State to hold selected variants (array for multiple selections)
   const [error, setError] = useState(null); // State to handle errors
   const [showSnackbar, setShowSnackbar] = useState(false); // Snackbar visibility
   const router = useRouter(); // Initialize the router for navigation
@@ -52,11 +52,17 @@ export default function QuestionDetails() {
       if (!answer.trim()) return; // Validate answer input
       answerToSubmit = answer;
     } else if (questionType === 'variant') {
-      if (!selectedVariant) {
-        alert('Zəhmət olmasa bir variant seçin.');
+      if (selectedVariants.length === 0) {
+        alert('Zəhmət olmasa ən azı bir variant seçin.');
         return;
       }
-      answerToSubmit = selectedVariant;
+      const maxSelections = question.maxSelections || 1;
+      if (selectedVariants.length > maxSelections) {
+        alert(`Maksimum ${maxSelections} variant seçə bilərsiniz.`);
+        return;
+      }
+      // Store as array for multiple selections
+      answerToSubmit = JSON.stringify(selectedVariants);
     }
 
     try {
@@ -66,7 +72,7 @@ export default function QuestionDetails() {
         answers: [...(question.answers || []), { answer: answerToSubmit, createdAt: new Date() }] // Append the new answer
       });
       setAnswer(''); // Clear the answer input after submission
-      setSelectedVariant(null); // Clear selected variant
+      setSelectedVariants([]); // Clear selected variants
       setShowSnackbar(true); // Show success snackbar
 
       // Redirect to the home page after a short delay
@@ -121,20 +127,51 @@ export default function QuestionDetails() {
             ) : (
               <div className="space-y-3">
                 {question.variants && question.variants.length > 0 ? (
-                  question.variants.map((variant, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={() => setSelectedVariant(variant.text)}
-                      className={`w-full text-left px-6 py-4 rounded-2xl border-2 transition-all duration-200 font-medium ${
-                        selectedVariant === variant.text
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-lg scale-[1.02]'
-                          : 'bg-white/80 text-gray-700 border-gray-200 hover:border-blue-400 hover:bg-blue-50'
-                      }`}
-                    >
-                      {variant.text}
-                    </button>
-                  ))
+                  <>
+                    {question.maxSelections > 1 && (
+                      <p className="text-sm text-gray-600 mb-2">
+                        {question.maxSelections} variant seçə bilərsiniz. ({selectedVariants.length}/{question.maxSelections} seçildi)
+                      </p>
+                    )}
+                    {question.variants.map((variant, index) => {
+                      const isSelected = selectedVariants.includes(variant.text);
+                      const maxSelections = question.maxSelections || 1;
+                      const canSelect = selectedVariants.length < maxSelections || isSelected;
+                      
+                      return (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              // Deselect
+                              setSelectedVariants(selectedVariants.filter(v => v !== variant.text));
+                            } else {
+                              // Select (if under limit)
+                              if (canSelect) {
+                                setSelectedVariants([...selectedVariants, variant.text]);
+                              } else {
+                                alert(`Maksimum ${maxSelections} variant seçə bilərsiniz.`);
+                              }
+                            }
+                          }}
+                          disabled={!canSelect && !isSelected}
+                          className={`w-full text-left px-6 py-4 rounded-2xl border-2 transition-all duration-200 font-medium ${
+                            isSelected
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-lg scale-[1.02]'
+                              : canSelect
+                              ? 'bg-white/80 text-gray-700 border-gray-200 hover:border-blue-400 hover:bg-blue-50'
+                              : 'bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed opacity-50'
+                          }`}
+                        >
+                          {variant.text}
+                          {isSelected && (
+                            <span className="ml-2 text-xs">✓</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </>
                 ) : (
                   <p className="text-gray-500 text-sm">Variantlar tapılmadı.</p>
                 )}

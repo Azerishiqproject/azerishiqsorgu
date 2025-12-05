@@ -94,8 +94,27 @@ export default function QuestionDetails() {
     if (question.answers) {
       question.answers.forEach(answer => {
         const answerText = answer.answer;
-        if (stats.hasOwnProperty(answerText)) {
-          stats[answerText]++;
+        // Check if answer is JSON array (multiple selections)
+        try {
+          const parsed = JSON.parse(answerText);
+          if (Array.isArray(parsed)) {
+            // Multiple selections
+            parsed.forEach(variantText => {
+              if (stats.hasOwnProperty(variantText)) {
+                stats[variantText]++;
+              }
+            });
+          } else {
+            // Single selection (old format)
+            if (stats.hasOwnProperty(answerText)) {
+              stats[answerText]++;
+            }
+          }
+        } catch (e) {
+          // Not JSON, treat as single selection
+          if (stats.hasOwnProperty(answerText)) {
+            stats[answerText]++;
+          }
         }
       });
     }
@@ -141,6 +160,11 @@ export default function QuestionDetails() {
               {(!question.questionType || question.questionType === 'text') ? 'Mətn girişi' : 'Variant seçimi'}
             </span>
           </p>
+          {question.questionType === 'variant' && question.maxSelections > 1 && (
+            <p className="text-xs text-slate-300 mb-2">
+              Maksimum seçim: <span className="text-white font-semibold">{question.maxSelections} variant</span>
+            </p>
+          )}
           {question.variants && question.variants.length > 0 && (
             <div className="mt-3">
               <p className="text-xs text-slate-300 mb-2">Variantlar:</p>
@@ -255,6 +279,11 @@ export default function QuestionDetails() {
                 .map(([variant, count]) => `${count} ${variant}`)
                 .join(', ') || 'Hələ cavab yoxdur'}
             </p>
+            {question.maxSelections > 1 && (
+              <p className="text-xs text-slate-300 mt-2">
+                İstifadəçilər {question.maxSelections} variant seçə bilər
+              </p>
+            )}
           </div>
         )}
 

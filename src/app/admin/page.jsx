@@ -20,6 +20,7 @@ export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [questionType, setQuestionType] = useState("text"); // "text" or "variant"
   const [variants, setVariants] = useState([{ id: Date.now(), text: "" }]);
+  const [maxSelections, setMaxSelections] = useState(1); // How many variants can be selected
 
   const generateRandomId = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -63,6 +64,7 @@ export default function AdminPanel() {
 
       if (questionType === "variant") {
         questionData.variants = variants.filter(v => v.text.trim()).map(v => ({ text: v.text.trim() }));
+        questionData.maxSelections = maxSelections || 1;
       }
 
       await addDoc(collection(db, "questions"), questionData);
@@ -104,8 +106,10 @@ export default function AdminPanel() {
 
       if (questionType === "variant") {
         updateData.variants = variants.filter(v => v.text.trim()).map(v => ({ text: v.text.trim() }));
+        updateData.maxSelections = maxSelections || 1;
       } else {
         updateData.variants = null;
+        updateData.maxSelections = null;
       }
 
       await updateDoc(docRef, updateData);
@@ -135,6 +139,7 @@ export default function AdminPanel() {
     setShowForm(false);
     setQuestionType("text");
     setVariants([{ id: Date.now(), text: "" }]);
+    setMaxSelections(1);
   };
 
   const toggleQuestionStatus = async (id, currentStatus) => {
@@ -150,6 +155,7 @@ export default function AdminPanel() {
     setEditingQuestion(question);
     setTitle(question.title);
     setQuestionType(question.questionType || "text");
+    setMaxSelections(question.maxSelections || 1);
     if (question.variants && question.variants.length > 0) {
       setVariants(question.variants.map((v, idx) => ({ id: Date.now() + idx, text: v.text })));
     } else {
@@ -322,6 +328,27 @@ export default function AdminPanel() {
                             <FontAwesomeIcon icon={faPlus} />
                             <span>Variant əlavə et</span>
                           </button>
+                        </div>
+                        <div className="mt-4">
+                          <label className="block text-xs font-medium text-slate-200 mb-2">
+                            Bir istifadəçi neçə variant seçə bilər?
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={variants.length}
+                            value={maxSelections}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value) || 1;
+                              const max = variants.length;
+                              setMaxSelections(Math.min(Math.max(1, value), max));
+                            }}
+                            className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-white placeholder:text-slate-300/70 outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200"
+                            placeholder="Məsələn: 3"
+                          />
+                          <p className="mt-1 text-xs text-slate-300/70">
+                            Minimum: 1, Maksimum: {variants.length} (variant sayı)
+                          </p>
                         </div>
                       </div>
                     )}
