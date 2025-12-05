@@ -13,6 +13,7 @@ export default function QuestionDetails() {
   const [selectedVariants, setSelectedVariants] = useState([]); // State to hold selected variants (array for multiple selections)
   const [error, setError] = useState(null); // State to handle errors
   const [showSnackbar, setShowSnackbar] = useState(false); // Snackbar visibility
+  const [hasAnswered, setHasAnswered] = useState(false); // Check if user has already answered
   const router = useRouter(); // Initialize the router for navigation
 
   useEffect(() => {
@@ -26,6 +27,13 @@ export default function QuestionDetails() {
         const matchedQuestion = questionsArray.find(question => question.id === slug);
         if (matchedQuestion) {
           setQuestion(matchedQuestion);
+          
+          // Check if user has already answered this question
+          const answeredKey = `answered_question_${slug}`;
+          const hasAnsweredBefore = localStorage.getItem(answeredKey);
+          if (hasAnsweredBefore) {
+            setHasAnswered(true);
+          }
         } else {
           setError(`No question found with ID: ${slug}`);
         }
@@ -44,6 +52,12 @@ export default function QuestionDetails() {
 
   const handleSubmit = async (e) => {
     e.preventDefault(); // Prevent the default form submission
+    
+    // Check if already answered
+    if (hasAnswered) {
+      alert('Bu suala artıq cavab vermisiniz.');
+      return;
+    }
     
     const questionType = question.questionType || 'text';
     let answerToSubmit = '';
@@ -71,14 +85,20 @@ export default function QuestionDetails() {
       await updateDoc(questionRef, {
         answers: [...(question.answers || []), { answer: answerToSubmit, createdAt: new Date() }] // Append the new answer
       });
+      
+      // Save to localStorage that user has answered this question (do this immediately)
+      const answeredKey = `answered_question_${slug}`;
+      localStorage.setItem(answeredKey, 'true');
+      setHasAnswered(true);
+      
       setAnswer(''); // Clear the answer input after submission
       setSelectedVariants([]); // Clear selected variants
       setShowSnackbar(true); // Show success snackbar
 
-      // Redirect to the home page after a short delay
+      // Redirect to the home page after showing snackbar (3 seconds to see the message)
       setTimeout(() => {
-        router.push('/'); // Change to your actual home page path
-      }, 2000);
+        router.push('/'); // Redirect to home page
+      }, 3000);
 
     } catch (error) {
       console.error('Error submitting answer:', error);
@@ -111,11 +131,31 @@ export default function QuestionDetails() {
       </div> 
   
       <div className='w-full flex justify-center p-4 relative z-10'>
-        <div className="max-w-2xl mx-auto p-6 bg-gray-100 rounded-lg shadow-lg mt-10 mb-20">
+        <div className="max-w-2xl mx-auto p-6 bg-gray-100 rounded-lg shadow-lg mt-10 mb-20 relative">
           <h1 className="text-2xl font-bold mb-6 text-black">{question.title}</h1>
   
+          {/* Success Snackbar - shown above the form */}
+          {showSnackbar && (
+            <div className="mb-4 p-4 bg-green-600 text-white rounded-2xl shadow-lg text-center">
+              <p className="font-semibold">Sorğuda iştirak etdiyiniz üçün təşəkkürlər.</p>
+            </div>
+          )}
+
+          {/* Show message if already answered */}
+          {hasAnswered && !showSnackbar && (
+            <div className="mt-4 p-6 bg-yellow-50 border-2 border-yellow-400 rounded-2xl text-center">
+              <p className="text-lg font-semibold text-yellow-800 mb-2">
+                Bu suala artıq cavab vermisiniz
+              </p>
+              <p className="text-sm text-yellow-700">
+                Hər suala yalnız bir dəfə cavab verə bilərsiniz.
+              </p>
+            </div>
+          )}
+
           {/* Answer submission form */}
-          <form onSubmit={handleSubmit} className="mt-4 text-black space-y-4">
+          {!hasAnswered && (
+            <form onSubmit={handleSubmit} className="mt-4 text-black space-y-4">
             {(!question.questionType || question.questionType === 'text') ? (
               <textarea
                 value={answer}
@@ -184,6 +224,7 @@ export default function QuestionDetails() {
               Cavabınızı göndərin
             </button>
           </form>
+          )}
         </div>
       </div>
       
@@ -192,13 +233,6 @@ export default function QuestionDetails() {
         <h2 className="text-xs font-semibold italic w-full text-center">“İŞIQLI YOL”</h2>
       </div>
 
-      {showSnackbar && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-          <div className="px-6 py-3 rounded-2xl bg-green-600 text-white shadow-lg text-sm sm:text-base">
-            Sorğuda iştirak etdiyiniz üçün təşəkkürlər.
-          </div>
-        </div>
-      )}
     </div>
   );
   

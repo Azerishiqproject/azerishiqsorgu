@@ -38,7 +38,7 @@ export default function Home() {
           <Image src='/images/azerisiq-logo.png' alt="logo" width={200} height={200} />
           <h2 className="pt-2 text-xs font-semibold italic">KOMANDA QURUCULUĞU və İNNOVATİV HƏLLƏR</h2>
         </div> 
-      <div className="flex flex-col mt-4 p-4 z-10">
+      <div className="flex flex-col mt-4 p-4 z-10 mb-20">
         <h1 className="text-3xl font-bold mb-6 w-full text-center text-gray-900">Suallar</h1>
 
         {loading ? (
